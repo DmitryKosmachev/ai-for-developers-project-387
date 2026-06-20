@@ -1,0 +1,23 @@
+# Зависимости и артефакты — устанавливаются/собираются внутри образа
+**/node_modules
+**/dist
+**/.venv
+**/__pycache__
+**/*.pyc
+**/.pytest_cache
+
+# Локальное окружение и тесты, не нужные в образе
+**/.env
+**/.env.*
+!**/.env.example
+e2e
+spec/dist
+spec/node_modules
+
+# Git и прочее
+.git
+.github
+docs
+**/.DS_Store
+**/playwright-report
+**/test-results

@@ -1,0 +1,18 @@
+{
+  "name": "call-booking-spec",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "API-контракт сервиса «Запись на созвон» (Design First, TypeSpec → OpenAPI)",
+  "scripts": {
+    "build": "tsp compile .",
+    "watch": "tsp compile . --watch"
+  },
+  "dependencies": {
+    "@typespec/compiler": "~0.67.0",
+    "@typespec/http": "~0.67.0",
+    "@typespec/openapi": "~0.67.0",
+    "@typespec/openapi3": "~0.67.0",
+    "@typespec/rest": "~0.67.0"
+  }
+}

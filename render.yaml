@@ -1,0 +1,10 @@
+# Render Blueprint: один Docker-сервис (API + SPA на одном порту).
+# Render сам прокидывает переменную окружения PORT, которую читает контейнер.
+services:
+  - type: web
+    name: call-booking
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /owner
+    autoDeploy: true

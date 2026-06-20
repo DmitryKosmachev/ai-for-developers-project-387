@@ -1,0 +1,392 @@
+openapi: 3.0.0
+info:
+  title: Запись на созвон API
+  version: 1.0.0
+  description: |-
+    «Запись на созвон» — упрощённый сервис бронирования времени по мотивам Cal.com.
+
+    Роли (без авторизации):
+    - Владелец календаря — единственный заранее заданный профиль. Создаёт типы
+    событий и просматривает список всех предстоящих встреч.
+    - Гость — без регистрации. Смотрит виды брони, выбирает свободный слот в окне
+    14 дней и оформляет запись.
+
+    Базовые правила:
+    - Слоты формируются по 30-минутной сетке, пн–пт, 09:00–18:00 (по owner.timezone).
+    - Окно записи — 14 дней от текущей даты.
+    - Событие длительностью N минут занимает N/30 смежных свободных ячеек.
+    - Глобальная занятость: на пересекающееся по времени окно нельзя создать две
+    брони, даже если это разные типы событий.
+tags:
+  - name: Гость
+  - name: Владелец
+paths:
+  /bookings:
+    post:
+      operationId: BookingsCreate_create
+      description: Создать бронь на выбранный слот.
+      parameters: []
+      responses:
+        '201':
+          description: The request has succeeded and a new resource has been created as a result.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Booking'
+        '404':
+          description: Ресурс не найден (например, неизвестный eventTypeId).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotFoundError'
+        '409':
+          description: Слот уже занят / пересекается с существующей бронью (глобальное правило).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SlotTakenError'
+        '422':
+          description: |-
+            Ошибка валидации: start не на 30-мин сетке, вне рабочих часов, вне окна 14 дней,
+            durationMinutes не кратно 30, невалидный email и т. п.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationError'
+      tags:
+        - Гость
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BookingCreate'
+    get:
+      operationId: BookingsAdmin_list
+      description: Все предстоящие встречи всех типов событий, отсортированы по start.
+      parameters: []
+      responses:
+        '200':
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Booking'
+      tags:
+        - Владелец
+  /event-types:
+    get:
+      operationId: EventTypes_list
+      description: Список видов брони (title, description, durationMinutes).
+      parameters: []
+      responses:
+        '200':
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/EventType'
+      tags:
+        - Гость
+    post:
+      operationId: EventTypesAdmin_create
+      description: Создать тип события.
+      parameters: []
+      responses:
+        '201':
+          description: The request has succeeded and a new resource has been created as a result.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EventType'
+        '422':
+          description: |-
+            Ошибка валидации: start не на 30-мин сетке, вне рабочих часов, вне окна 14 дней,
+            durationMinutes не кратно 30, невалидный email и т. п.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationError'
+      tags:
+        - Владелец
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EventTypeCreate'
+  /event-types/{id}:
+    get:
+      operationId: EventTypes_read
+      description: Детали одного типа события.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EventType'
+        '404':
+          description: Ресурс не найден (например, неизвестный eventTypeId).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotFoundError'
+      tags:
+        - Гость
+  /event-types/{id}/slots:
+    get:
+      operationId: EventTypes_slots
+      description: |-
+        Свободные слоты для типа события в окне 14 дней.
+        Учитывает глобальную занятость и помещаемость N смежных ячеек.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: from
+          in: query
+          required: false
+          description: Начало окна (по умолчанию — текущий момент).
+          schema:
+            type: string
+            format: date-time
+          explode: false
+        - name: days
+          in: query
+          required: false
+          description: Размер окна в днях (по умолчанию 14).
+          schema:
+            type: integer
+            format: int32
+          explode: false
+      responses:
+        '200':
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Slot'
+        '404':
+          description: Ресурс не найден (например, неизвестный eventTypeId).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotFoundError'
+      tags:
+        - Гость
+  /owner:
+    get:
+      operationId: OwnerApi_get
+      description: Профиль владельца для шапки публичной страницы.
+      parameters: []
+      responses:
+        '200':
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Owner'
+      tags:
+        - Гость
+components:
+  schemas:
+    Booking:
+      type: object
+      required:
+        - id
+        - eventTypeId
+        - start
+        - end
+        - guestName
+        - guestEmail
+        - createdAt
+      properties:
+        id:
+          type: string
+          description: Уникальный идентификатор брони (UUID), назначается сервером.
+          readOnly: true
+        eventTypeId:
+          type: string
+          description: Идентификатор типа события, к которому относится бронь.
+        start:
+          type: string
+          format: date-time
+          description: Начало встречи (ISO 8601, UTC).
+        end:
+          type: string
+          format: date-time
+          description: Конец встречи = start + durationMinutes, вычисляется сервером (ISO 8601, UTC).
+          readOnly: true
+        guestName:
+          type: string
+          description: Имя гостя.
+        guestEmail:
+          type: string
+          format: email
+          description: Email гостя.
+        comment:
+          type: string
+          description: Необязательная тема/комментарий к встрече.
+        createdAt:
+          type: string
+          format: date-time
+          description: Момент создания брони, назначается сервером (ISO 8601, UTC).
+          readOnly: true
+      description: Оформленная запись на встречу.
+    BookingCreate:
+      type: object
+      required:
+        - eventTypeId
+        - start
+        - guestName
+        - guestEmail
+      properties:
+        eventTypeId:
+          type: string
+          description: Тип события, на который записывается гость.
+        start:
+          type: string
+          format: date-time
+          description: Выбранное начало слота (ISO 8601, UTC), должно быть на 30-мин сетке.
+        guestName:
+          type: string
+        guestEmail:
+          type: string
+          format: email
+        comment:
+          type: string
+      description: Тело запроса на создание брони (end, id, createdAt вычисляет сервер).
+    EventType:
+      type: object
+      required:
+        - id
+        - title
+        - description
+        - durationMinutes
+      properties:
+        id:
+          type: string
+          description: Уникальный идентификатор (UUID), назначается сервером.
+          readOnly: true
+        title:
+          type: string
+          description: Короткое название типа встречи.
+        description:
+          type: string
+          description: Описание типа встречи для гостя.
+        durationMinutes:
+          type: integer
+          format: int32
+          minimum: 30
+          description: |-
+            Длительность встречи в минутах.
+            Должна быть кратна 30 и не меньше 30 (одна или несколько 30-мин ячеек).
+      description: Тип события (вид встречи), которым управляет владелец.
+    EventTypeCreate:
+      type: object
+      required:
+        - title
+        - description
+        - durationMinutes
+      properties:
+        title:
+          type: string
+        description:
+          type: string
+        durationMinutes:
+          type: integer
+          format: int32
+          minimum: 30
+          description: Кратно 30, минимум 30.
+      description: Тело запроса на создание типа события (id назначает сервер).
+    NotFoundError:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: string
+          enum:
+            - not_found
+        message:
+          type: string
+      description: Ресурс не найден (например, неизвестный eventTypeId).
+    Owner:
+      type: object
+      required:
+        - name
+        - timezone
+      properties:
+        name:
+          type: string
+          description: Отображаемое имя владельца — «Записаться на созвон к …».
+        timezone:
+          type: string
+          description: IANA-таймзона владельца, по ней считаются рабочие часы (напр. "Europe/Moscow").
+      description: Профиль владельца календаря (единственный, только чтение).
+    Slot:
+      type: object
+      required:
+        - start
+        - end
+      properties:
+        start:
+          type: string
+          format: date-time
+          description: Начало слота, выровнено по 30-минутной сетке (ISO 8601, UTC).
+        end:
+          type: string
+          format: date-time
+          description: Конец слота = start + durationMinutes типа события (ISO 8601, UTC).
+      description: |-
+        Свободный слот — вычисляемый интервал, в БД не хранится.
+        Возвращается для конкретного типа события: начиная с `start` подряд свободны
+        N = durationMinutes/30 ячеек, всё внутри рабочих часов и окна 14 дней.
+    SlotTakenError:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: string
+          enum:
+            - slot_taken
+        message:
+          type: string
+      description: Слот уже занят / пересекается с существующей бронью (глобальное правило).
+    ValidationError:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: string
+          enum:
+            - validation_error
+        message:
+          type: string
+      description: |-
+        Ошибка валидации: start не на 30-мин сетке, вне рабочих часов, вне окна 14 дней,
+        durationMinutes не кратно 30, невалидный email и т. п.
+servers:
+  - url: http://localhost:3000
+    description: Локальный сервер разработки
+    variables: {}
