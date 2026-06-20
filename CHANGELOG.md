@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.1.0](https://github.com/DmitryKosmachev/ai-for-developers-project-387/compare/v1.0.0...v1.1.0) (2026-06-20)
+
+
+### Features
+
+* import call-booking service from project-386 ([f89ad68](https://github.com/DmitryKosmachev/ai-for-developers-project-387/commit/f89ad68d4a7767a7dc1d337380bb05a248249c61))
+
 ## 1.0.0 (2026-06-17)
 
 
